@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+celery
+redis
+python-dotenv
+google-generativeai
+langchain-community
+pypdf
