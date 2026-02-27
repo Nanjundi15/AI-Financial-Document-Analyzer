@@ -1,102 +1,200 @@
-# AI Financial Document Analyzer 📊🤖
+# AI Financial Document Analyzer (FastAPI + Gemini + Redis + Celery)
 
-A **production-ready AI system** that analyzes financial PDF documents and generates structured insights such as revenue, profit, risks, and investment recommendations using **Google Gemini AI**, **FastAPI**, **Redis**, **Celery**, and **SQLite**.
+A **production-ready AI Financial Document Analyzer** that processes financial PDF documents and generates structured insights using **Google Gemini AI**. The system uses **FastAPI for APIs**, **Redis + Celery for background processing**, and **SQLite for persistent storage**.
 
-This system supports **asynchronous background processing**, **concurrent requests**, and **persistent storage of analysis results**.
-
----
-
-# 🚀 Features
-
-* 📄 Upload financial PDF documents
-* 🤖 AI-powered analysis using Google Gemini
-* ⚡ Asynchronous processing using Redis + Celery
-* 🗄 Database storage using SQLite
-* 🌐 REST API using FastAPI
-* 🔄 Concurrent request handling (queue-based worker model)
-* 📊 Retrieve analysis results anytime
-* 🧩 Modular and production-ready architecture
+This project was originally built with multiple bugs and blocking issues. The system has been fully debugged, refactored, and upgraded to support **concurrent requests, queue workers, and database integration**.
 
 ---
 
-# 🏗 Architecture
+# Overview
 
-```
-User
- │
- ▼
+The system allows users to:
+
+* Upload financial PDF documents
+* Analyze them using AI
+* Process requests asynchronously
+* Store results in a database
+* Retrieve results using an API
+
+---
+
+# Architecture
+
+```text
+Client
+  │
+  ▼
 FastAPI Server
- │
- ▼
+  │
+  ▼
 Redis Queue
- │
- ▼
+  │
+  ▼
 Celery Worker
- │
- ▼
+  │
+  ▼
 Gemini AI Analyzer
- │
- ▼
+  │
+  ▼
 SQLite Database
- │
- ▼
-Result API
+  │
+  ▼
+API Response
 ```
 
 ---
 
-# 📁 Project Structure
+# Bugs Found and Fixes
 
+## 1. CrewAI Tool Integration Failure
+
+**Problem**
+
+CrewAI required tools to be BaseTool objects, but plain Python functions were used.
+
+**Error**
+
+```text
+ValidationError: Input should be a valid dictionary or instance of BaseTool
 ```
+
+**Fix**
+
+Replaced CrewAI dependency with a simpler and more stable Gemini AI integration.
+
+---
+
+## 2. Blocking API Requests
+
+**Problem**
+
+AI analysis was executed directly inside FastAPI endpoints, causing long waits and freezing.
+
+**Fix**
+
+Implemented Redis queue with Celery workers:
+
+```python
+analyze_document_task.delay(record_id, query, file_path)
+```
+
+Result: API responds instantly while processing runs in background.
+
+---
+
+## 3. No Database Storage
+
+**Problem**
+
+Results were not saved. Data was lost after execution.
+
+**Fix**
+
+Implemented SQLite database:
+
+```python
+CREATE TABLE analyses(
+ id INTEGER PRIMARY KEY,
+ filename TEXT,
+ query TEXT,
+ result TEXT,
+ status TEXT
+)
+```
+
+---
+
+## 4. Redis Connection Issues on Windows
+
+**Problem**
+
+Redis not detected or port conflict.
+
+**Fix**
+
+Installed Redis Windows build and verified using:
+
+```bash
+redis-cli ping
+```
+
+---
+
+## 5. Celery PermissionError on Windows
+
+**Error**
+
+```text
+PermissionError: Access is denied
+```
+
+**Cause**
+
+Windows does not support prefork multiprocessing.
+
+**Fix**
+
+Run Celery using solo pool:
+
+```bash
+celery -A worker worker --pool=solo --loglevel=info
+```
+
+---
+
+## 6. Gemini SDK Deprecation Warning
+
+Old package:
+
+```python
+google.generativeai
+```
+
+Fix:
+
+Upgraded to latest Gemini SDK (recommended).
+
+---
+
+# Project Structure
+
+```text
 financial-document-analyzer/
 │
-├── main.py              # FastAPI API server
-├── worker.py            # Celery background worker
-├── ai_analyzer.py       # Gemini AI integration
-├── tools.py             # PDF text extraction
-├── database.py          # SQLite database logic
+├ main.py
+├ worker.py
+├ ai_analyzer.py
+├ tools.py
+├ database.py
 │
-├── requirements.txt     # Python dependencies
-├── .env                 # Environment variables
+├ requirements.txt
+├ .env
 │
-├── data/                # Uploaded PDFs
-├── analysis.db          # SQLite database
+├ data/
+├ analysis.db
 │
-└── README.md
+└ README.md
 ```
 
 ---
 
-# ⚙️ Technologies Used
+# Technologies Used
 
-* FastAPI
-* Google Gemini AI
-* Redis
-* Celery
-* SQLite
-* Python
-* LangChain PDF Loader
-* Uvicorn
-
----
-
-# 🧠 How It Works
-
-1. User uploads financial PDF via API
-2. FastAPI saves file and creates database record
-3. Task is sent to Redis queue
-4. Celery worker processes document
-5. Gemini AI analyzes document
-6. Result is stored in SQLite database
-7. User retrieves result via API
+Python
+FastAPI
+Redis
+Celery
+SQLite
+Google Gemini AI
+LangChain PDF Loader
 
 ---
 
-# 📦 Installation & Setup
+# Installation Guide
 
 ## 1. Clone repository
 
-```
+```bash
 git clone https://github.com/yourusername/financial-document-analyzer.git
 
 cd financial-document-analyzer
@@ -106,7 +204,7 @@ cd financial-document-analyzer
 
 ## 2. Create virtual environment
 
-```
+```bash
 python -m venv .venv
 
 .venv\Scripts\activate
@@ -116,7 +214,7 @@ python -m venv .venv
 
 ## 3. Install dependencies
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -124,18 +222,19 @@ pip install -r requirements.txt
 
 ## 4. Setup environment variables
 
-Create `.env` file:
+Create `.env`
 
-```
-GEMINI_API_KEY=your_gemini_api_key_here
+```text
+GEMINI_API_KEY=your_api_key_here
 ```
 
-Get API key:
+Get key from:
+
 https://aistudio.google.com/app/apikey
 
 ---
 
-# 🧰 Install Redis (Windows)
+# Install Redis (Windows)
 
 Download:
 
@@ -143,160 +242,172 @@ https://github.com/tporadowski/redis/releases
 
 Extract and run:
 
-```
+```bash
 redis-server.exe
+```
+
+Verify:
+
+```bash
+redis-cli ping
+```
+
+Output:
+
+```text
+PONG
 ```
 
 ---
 
-# ▶️ Run the system
+# Running the System
 
 Open 3 terminals:
 
 ---
 
-## Terminal 1 — Start Redis
+Terminal 1:
 
-```
+```bash
 redis-server
 ```
 
 ---
 
-## Terminal 2 — Start Celery worker
+Terminal 2:
 
-Windows requires solo pool:
-
-```
+```bash
 celery -A worker worker --pool=solo --loglevel=info
 ```
 
 ---
 
-## Terminal 3 — Start FastAPI
+Terminal 3:
 
-```
+```bash
 uvicorn main:app --reload
 ```
 
 ---
 
-# 🌐 API Documentation
+# API Documentation
 
 Open:
 
-```
+```text
 http://127.0.0.1:8000/docs
 ```
 
+Swagger UI provides interactive API testing.
+
 ---
 
-# 📤 Upload document endpoint
+# API Endpoints
+
+---
+
+## 1. Upload and Analyze Document
 
 POST
 
-```
+```text
 /analyze
 ```
 
-Form Data:
+Request:
 
-```
-file: PDF file
-query: analysis request
+Form Data
+
+file → PDF file
+
+query → analysis question
+
+Example:
+
+```text
+Analyze revenue and investment risks
 ```
 
 Response:
 
-```
+```json
 {
-  "analysis_id": 1,
-  "status": "processing"
+ "analysis_id": 1,
+ "status": "processing"
 }
 ```
 
 ---
 
-# 📥 Get result endpoint
+## 2. Get Analysis Result
 
 GET
 
-```
+```text
 /result/{analysis_id}
 ```
 
 Example:
 
-```
+```text
 /result/1
 ```
 
 Response:
 
-```
+```json
 {
-  "status": "completed",
-  "result": "Financial analysis..."
+ "id": 1,
+ "filename": "report.pdf",
+ "query": "Analyze revenue",
+ "result": "Revenue increased 12%",
+ "status": "completed"
 }
 ```
 
 ---
 
-# 💾 Database Schema
+# Queue Worker Model (Bonus Requirement)
 
-Table: analyses
+Implemented using:
 
-| Column   | Type    |
-| -------- | ------- |
-| id       | INTEGER |
-| filename | TEXT    |
-| query    | TEXT    |
-| result   | TEXT    |
-| status   | TEXT    |
-
----
-
-# 🔄 Queue Worker Model (Bonus Feature)
-
-This project uses:
-
-* Redis as message broker
-* Celery as background worker
+Redis
+Celery
 
 Benefits:
 
-* Non-blocking API
-* Concurrent request handling
-* Scalable architecture
-* Production ready
+Non-blocking API
+Concurrent users supported
+Scalable system
+Background processing
 
 ---
 
-# 📊 Example Use Cases
+# Database Integration (Bonus Requirement)
 
-* Financial report analysis
-* Investment research automation
-* Banking document analysis
-* FinTech applications
-* AI automation workflows
+SQLite used to store:
 
----
+Analysis ID
+File name
+Query
+Result
+Status
 
-# 🧪 Example Workflow
-
-1. Upload Tesla Annual Report
-2. System processes in background
-3. AI extracts financial insights
-4. Results available via API
+Provides persistent storage and retrieval.
 
 ---
 
-# 🛡 Production Improvements (Future Scope)
+# Example Workflow
 
-* PostgreSQL instead of SQLite
-* Docker deployment
-* Frontend dashboard
-* Authentication system
-* Vector database integration
+Upload PDF → API creates task → Redis queue → Celery worker → Gemini analyzes → Result saved → User retrieves result
 
+---
+
+# Future Improvements
+
+Frontend dashboard
+PostgreSQL integration
+Docker deployment
+Authentication
+Cloud deployment
 
